@@ -190,14 +190,26 @@ jobs:
               apt-get install -y --no-install-recommends ca-certificates git bash
 
               chmod +x src/crankshaft-core/build.sh src/crankshaft-ui-slim/build.sh
-              src/crankshaft-core/build.sh --install-deps
-              src/crankshaft-ui-slim/build.sh --install-deps
+              (
+                cd src/crankshaft-core
+                ./build.sh --install-deps
+              )
+              (
+                cd src/crankshaft-ui-slim
+                ./build.sh --install-deps
+              )
 
               VERSION="${{ steps.get_version.outputs.version_string }}"
-              BUILD_PACKAGE=ON BUILD_TESTS=OFF VERSION="${VERSION}" \
-                src/crankshaft-core/build.sh --clean
-              BUILD_PACKAGE=ON BUILD_TESTS=OFF VERSION="${VERSION}" \
-                src/crankshaft-ui-slim/build.sh --clean
+              (
+                cd src/crankshaft-core
+                BUILD_PACKAGE=ON BUILD_TESTS=OFF VERSION="${VERSION}" \
+                  ./build.sh --clean
+              )
+              (
+                cd src/crankshaft-ui-slim
+                BUILD_PACKAGE=ON BUILD_TESTS=OFF VERSION="${VERSION}" \
+                  ./build.sh --clean
+              )
 
               find src/crankshaft-core src/crankshaft-ui-slim -type f -name "*.deb" \
                 -exec cp -v {} /work/local-packages/ \;
