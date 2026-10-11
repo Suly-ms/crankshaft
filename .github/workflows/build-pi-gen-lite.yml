@@ -111,6 +111,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          submodules: recursive
 
       - name: Get build metadata
         id: get_version
@@ -172,6 +173,37 @@ jobs:
           sudo update-binfmts --enable qemu-aarch64
           arch-test "${{ matrix.arch }}"
 
+      - name: Build forked Core and UI packages
+        run: |
+          set -euo pipefail
+          rm -rf local-packages
+          mkdir -p local-packages
+          docker run --rm \
+            --platform "${{ matrix.platform }}" \
+            -e DEBIAN_FRONTEND=noninteractive \
+            -v "${GITHUB_WORKSPACE}:/work" \
+            -w /work \
+            debian:trixie-slim \
+            bash -lc '
+              set -euo pipefail
+              apt-get update
+              apt-get install -y --no-install-recommends ca-certificates git bash
+
+              chmod +x src/crankshaft-core/build.sh src/crankshaft-ui-slim/build.sh
+              src/crankshaft-core/build.sh --install-deps
+              src/crankshaft-ui-slim/build.sh --install-deps
+
+              VERSION="${{ steps.get_version.outputs.version_string }}"
+              BUILD_PACKAGE=ON BUILD_TESTS=OFF VERSION="${VERSION}" \
+                src/crankshaft-core/build.sh --clean
+              BUILD_PACKAGE=ON BUILD_TESTS=OFF VERSION="${VERSION}" \
+                src/crankshaft-ui-slim/build.sh --clean
+
+              find src/crankshaft-core src/crankshaft-ui-slim -type f -name "*.deb" \
+                -exec cp -v {} /work/local-packages/ \;
+              test -n "$(find /work/local-packages -maxdepth 1 -type f -name "*.deb" -print -quit)"
+            '
+
       - name: Configure pi-gen build
         run: |
           set -euo pipefail
@@ -190,6 +222,9 @@ jobs:
         working-directory: pi-gen
         run: |
           set -euo pipefail
+          mkdir -p stage60/02-opencardev-packages/files/etc/crankshaft/local-packages
+          cp ../local-packages/*.deb \
+            stage60/02-opencardev-packages/files/etc/crankshaft/local-packages/
           sudo ./build.sh
           sudo chown -R "$(id -u):$(id -g)" deploy work || true
 

@@ -8,3 +8,4 @@ pipewire-pulse
 wireplumber
 pulseaudio-utils
 libspa-0.2-bluetooth
+netcat-openbsd
